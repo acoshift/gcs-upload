@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"mime"
 	"net/http"
 
 	"github.com/satori/go.uuid"
@@ -17,8 +16,6 @@ import (
 
 type Config struct {
 	Addr         string
-	DevMode      bool
-	ProjectID    string
 	GoogleConfig string
 	BucketName   string
 	MaxLength    int64
@@ -44,16 +41,18 @@ func main() {
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
+	if r.ContentLength == 0 {
+		w.Write([]byte("invalid request"))
+		return
+	}
+
 	if config.MaxLength > 0 && r.ContentLength > config.MaxLength {
 		w.Write([]byte("filesize limited to 10MiB"))
 		return
 	}
 
-	ext := ""
-	if exts, err := mime.ExtensionsByType(r.Header.Get("Content-Type")); err == nil {
-		ext = exts[0]
-	}
-	fileName := uuid.NewV4().String() + ext
+	contentType := r.Header.Get("Content-Type")
+	fileName := uuid.NewV4().String()
 
 	fs := r.Body
 	storageService, err := storage.New(googleConf.Client(context.Background()))
@@ -63,7 +62,10 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	object := &storage.Object{Name: fileName}
+	object := &storage.Object{
+		Name:        fileName,
+		ContentType: contentType,
+	}
 	res, err := storageService.Objects.Insert(config.BucketName, object).Media(fs).Do()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -71,7 +73,8 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write([]byte(res.MediaLink))
+	w.Header().Set("Content-Type", "text/plain")
+	w.Write([]byte("https://storage.googleapis.com/" + config.BucketName + "/" + fileName))
 
 	log.Printf("[uploaded]: %s\n", res.MediaLink)
 }
