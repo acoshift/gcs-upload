@@ -31,7 +31,7 @@ func main() {
 	}
 
 	r := mux.NewRouter()
-	r.HandleFunc("/", uploadHandler).Methods("POST")
+	r.HandleFunc("/{bucket}", uploadHandler).Methods("POST")
 
 	n := negroni.New()
 	n.Use(negroni.NewLogger())
@@ -41,6 +41,13 @@ func main() {
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
+	v := mux.Vars(r)
+	bucket := v["bucket"]
+	if bucket == "" {
+		w.Write([]byte("invalid request"))
+		return
+	}
+
 	if r.ContentLength == 0 {
 		w.Write([]byte("invalid request"))
 		return
@@ -66,7 +73,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		Name:        fileName,
 		ContentType: contentType,
 	}
-	res, err := storageService.Objects.Insert(config.BucketName, object).Media(fs).Do()
+	res, err := storageService.Objects.Insert(bucket, object).Media(fs).Do()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Internal Server Error"))
@@ -74,7 +81,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte("https://storage.googleapis.com/" + config.BucketName + "/" + fileName))
+	w.Write([]byte("https://storage.googleapis.com/" + bucket + "/" + fileName))
 
 	log.Printf("[uploaded]: %s\n", res.MediaLink)
 }
