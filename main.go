@@ -8,6 +8,7 @@ import (
 
 	"github.com/codegangsta/negroni"
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
@@ -30,12 +31,20 @@ func main() {
 		log.Fatal(err)
 	}
 
+	c := cors.New(cors.Options{
+		AllowedOrigins:     []string{"*"},
+		AllowedMethods:     []string{"POST"},
+		OptionsPassthrough: false,
+		Debug:              false,
+	})
+
 	r := mux.NewRouter()
 	r.HandleFunc("/{bucket}", uploadHandler).Methods("POST")
 
 	n := negroni.New()
 	n.Use(negroni.NewLogger())
 	n.Use(negroni.NewRecovery())
+	n.Use(c)
 	n.UseHandler(r)
 	n.Run(config.Addr)
 }
