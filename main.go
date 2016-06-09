@@ -20,6 +20,7 @@ type Config struct {
 	GoogleConfig string
 	BucketName   string
 	MaxLength    int64
+	CacheControl string
 }
 
 var googleConf *jwt.Config
@@ -79,8 +80,9 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	object := &storage.Object{
-		Name:        fileName,
-		ContentType: contentType,
+		Name:         fileName,
+		ContentType:  contentType,
+		CacheControl: config.CacheControl,
 	}
 	res, err := storageService.Objects.Insert(bucket, object).Media(fs).Do()
 	if err != nil {
