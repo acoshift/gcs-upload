@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -54,17 +55,20 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	v := mux.Vars(r)
 	bucket := v["bucket"]
 	if bucket == "" {
-		w.Write([]byte("invalid request"))
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("invalid bucket"))
 		return
 	}
 
 	if r.ContentLength == 0 {
-		w.Write([]byte("invalid request"))
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("invalid body"))
 		return
 	}
 
 	if config.MaxLength > 0 && r.ContentLength > config.MaxLength {
-		w.Write([]byte("filesize limited to 10MiB"))
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "filesize limited to %d bytes", config.MaxLength)
 		return
 	}
 
@@ -92,7 +96,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte("https://storage.googleapis.com/" + bucket + "/" + fileName))
+	fmt.Fprintf(w, "https://storage.googleapis.com/%s/%s", bucket, fileName)
 
 	log.Printf("[uploaded]: %s\n", res.MediaLink)
 }
